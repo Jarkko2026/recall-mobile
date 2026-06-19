@@ -1,6 +1,6 @@
 // lib/services/api_client.dart
 // CloudBase 网关 HTTP 客户端
-// 通过 https://{env}.service.tcloudbase.com/{function} 调用云函数
+// 通过 https://{env}.service.tcloudbase.com/{function}{path} 调用云函数
 // 与 web 端共用同一套云函数（items-api / user-api / search-api / llm-proxy）
 
 import 'package:dio/dio.dart';
@@ -29,6 +29,7 @@ class ApiClient {
           receiveTimeout: const Duration(seconds: 60),
           sendTimeout: const Duration(seconds: 30),
           headers: {'Content-Type': 'application/json'},
+          validateStatus: (_) => true,
         ));
 
   void setSession({required String userId, required String username}) {
@@ -45,9 +46,22 @@ class ApiClient {
   String? get username => _username;
   bool get isAuthed => _userId != null;
 
+  Map<String, dynamic> _userInfoMap() {
+    final uid = _userId ?? 'web_anon_${DateTime.now().millisecondsSinceEpoch}';
+    return {
+      'uid': uid,
+      'openId': uid,
+      'userId': uid,
+      'username': _username ?? '',
+      'loginType': _userId != null ? 'ACCOUNT' : 'ANONYMOUS',
+    };
+  }
+
   /// 调用云函数（HTTP 网关）
-  /// - functionName: items-api / user-api / search-api / llm-proxy
-  /// - method/path/body: 与 web 端 callFunction 的语义对齐
+  /// 全部用 POST 发送，body 顶层带：
+  /// - 业务字段
+  /// - __method: 真实 HTTP method（云函数据此派发）
+  /// - __userInfo: 用户身份（私有路由要求）
   Future<Map<String, dynamic>> call(
     String functionName, {
     required String method,
@@ -55,43 +69,35 @@ class ApiClient {
     Map<String, dynamic>? body,
     bool requireAuth = true,
   }) async {
-    final payload = <String, dynamic>{
-      'method': method,
-      'path': path,
-      if (body != null) 'body': body,
-    };
+    final url = '/$functionName$path';
+    final m = method.toUpperCase();
+
+    final mergedBody = <String, dynamic>{};
+    if (body != null) mergedBody.addAll(body);
+    mergedBody['__method'] = m;
     if (requireAuth || _userId != null) {
-      final uid = _userId ?? 'web_anon_${DateTime.now().millisecondsSinceEpoch}';
-      payload['userInfo'] = {
-        'uid': uid,
-        'openId': uid,
-        'userId': uid,
-        'username': _username ?? '',
-        'loginType': _userId != null ? 'ACCOUNT' : 'ANONYMOUS',
-      };
+      mergedBody['__userInfo'] = _userInfoMap();
     }
 
     try {
-      final res = await _dio.post('/$functionName', data: payload);
+      final res = await _dio.post(url, data: mergedBody);
       final data = res.data;
-      // CloudBase HTTP 网关返回结构：直接是云函数 return 值
-      Map<String, dynamic> body;
+      Map<String, dynamic> respBody;
       if (data is Map<String, dynamic>) {
-        body = data;
+        respBody = data;
       } else if (data is String) {
-        // 容错：偶尔被序列化两次
-        body = {'code': -1, 'message': data};
+        respBody = {'code': -1, 'message': data};
       } else {
-        body = {'code': -1, 'message': '未知响应'};
+        respBody = {'code': -1, 'message': '未知响应'};
       }
-      final code = body['code'];
+      final code = respBody['code'];
       if (code != 0) {
         throw ApiException(
           (code is int) ? code : -1,
-          (body['message'] ?? '调用失败').toString(),
+          (respBody['message'] ?? '调用失败').toString(),
         );
       }
-      final inner = body['data'];
+      final inner = respBody['data'];
       if (inner is Map<String, dynamic>) return inner;
       return {'data': inner};
     } on DioException catch (e) {

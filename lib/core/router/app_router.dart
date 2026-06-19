@@ -15,36 +15,36 @@ import '../../presentation/pages/login_page.dart';
 import '../../services/auth_service.dart';
 import '../../data/repositories/item_repository.dart';
 
-class _AuthListenable extends ChangeNotifier {
-  _AuthListenable(this._ref) {
-    _ref.listen<AsyncValue>(authControllerProvider, (_, __) {
-      notifyListeners();
-    });
-  }
-  final WidgetRef _ref;
-}
+/// router 用 Provider 暴露，依赖 auth 状态自动 rebuild
+final routerProvider = Provider<GoRouter>((ref) {
+  final notifier = ValueNotifier<int>(0);
+  ref.onDispose(notifier.dispose);
 
-GoRouter buildRouter(WidgetRef ref) {
-  final listenable = _AuthListenable(ref);
+  // 监听 auth 变化，触发 router 刷新
+  ref.listen<AsyncValue<AuthSession?>>(authControllerProvider, (_, __) {
+    notifier.value++;
+  });
 
   return GoRouter(
     initialLocation: '/splash',
-    refreshListenable: listenable,
+    refreshListenable: notifier,
     redirect: (ctx, state) {
       final auth = ref.read(authControllerProvider);
       final loc = state.uri.toString();
       final isAuthRoute = loc == '/login' || loc == '/onboarding' || loc == '/splash';
-      // 未恢复完成
+      // 还在恢复登录态
       if (auth.isLoading && loc != '/splash') return '/splash';
       if (auth.hasValue) {
         final session = auth.value;
         if (session == null && !isAuthRoute) return '/login';
+        if (session == null && loc == '/splash') return '/login';
         if (session != null && (loc == '/login' || loc == '/splash')) {
           // 登录成功后预拉一次数据
           Future.microtask(() => ref.read(itemsControllerProvider.notifier).refresh());
           return '/timeline';
         }
       }
+      if (auth.hasError && !isAuthRoute) return '/login';
       return null;
     },
     routes: [
@@ -74,7 +74,7 @@ GoRouter buildRouter(WidgetRef ref) {
       ),
     ],
   );
-}
+});
 
 class _SplashScreen extends StatelessWidget {
   const _SplashScreen();

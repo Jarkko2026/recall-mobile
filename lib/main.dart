@@ -10,24 +10,19 @@ void main() {
   runApp(const ProviderScope(child: RecallApp()));
 }
 
-class RecallApp extends ConsumerStatefulWidget {
+class RecallApp extends ConsumerWidget {
   const RecallApp({Key? key}) : super(key: key);
-  @override
-  ConsumerState<RecallApp> createState() => _RecallAppState();
-}
-
-class _RecallAppState extends ConsumerState<RecallApp> {
-  late final _router = buildRouter(ref);
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final router = ref.watch(routerProvider);
     return MaterialApp.router(
       title: 'Recall · 自动整理你的收藏',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: ThemeMode.system,
-      routerConfig: _router,
+      routerConfig: router,
     );
   }
 }
