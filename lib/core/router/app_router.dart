@@ -21,10 +21,10 @@ class _AuthListenable extends ChangeNotifier {
       notifyListeners();
     });
   }
-  final Ref _ref;
+  final WidgetRef _ref;
 }
 
-GoRouter buildRouter(Ref ref) {
+GoRouter buildRouter(WidgetRef ref) {
   final listenable = _AuthListenable(ref);
 
   return GoRouter(
@@ -32,7 +32,7 @@ GoRouter buildRouter(Ref ref) {
     refreshListenable: listenable,
     redirect: (ctx, state) {
       final auth = ref.read(authControllerProvider);
-      final loc = state.location;
+      final loc = state.uri.toString();
       final isAuthRoute = loc == '/login' || loc == '/onboarding' || loc == '/splash';
       // 未恢复完成
       if (auth.isLoading && loc != '/splash') return '/splash';
