@@ -1,0 +1,83 @@
+plugins {
+    id "com.android.application"
+    id "kotlin-android"
+    id "dev.flutter.flutter-gradle-plugin"
+}
+
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file('local.properties')
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withReader('UTF-8') { reader ->
+        localProperties.load(reader)
+    }
+}
+
+def flutterVersionCode = localProperties.getProperty('flutter.versionCode')
+if (flutterVersionCode == null) {
+    flutterVersionCode = '1'
+}
+
+def flutterVersionName = localProperties.getProperty('flutter.versionName')
+if (flutterVersionName == null) {
+    flutterVersionName = '1.0'
+}
+
+android {
+    namespace "com.recall.recall"
+    compileSdk 34
+    ndkVersion flutter.ndkVersion
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+
+    sourceSets {
+        main.java.srcDirs += 'src/main/kotlin'
+    }
+
+    defaultConfig {
+        applicationId "com.recall.recall"
+        minSdkVersion flutter.minSdkVersion
+        targetSdkVersion 34
+        versionCode flutterVersionCode.toInteger()
+        versionName flutterVersionName
+    }
+
+    // Phase 1.6 — Release 签名：优先用环境变量注入的 keystore（CI 通过 secrets 注入）
+    // 缺失时回退 debug 签名（仍可本地出包，但 CI 出的包不可上架 Play Store）
+    // 上线发布前必须设置 RELEASE_KEYSTORE_BASE64 / RELEASE_KEY_ALIAS / RELEASE_KEY_PASSWORD / RELEASE_STORE_PASSWORD
+    def releaseKeystore = System.getenv('RELEASE_KEYSTORE_PATH')
+    def releaseKeyAlias = System.getenv('RELEASE_KEY_ALIAS')
+    def releaseKeyPassword = System.getenv('RELEASE_KEY_PASSWORD')
+    def releaseStorePassword = System.getenv('RELEASE_STORE_PASSWORD')
+    if (releaseKeystore && new File(releaseKeystore).exists()) {
+        signingConfigs {
+            release {
+                storeFile file(releaseKeystore)
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            // 优先用 release 签名，否则回退 debug（仅本地测试用，不可发布）
+            signingConfig = (releaseKeystore && new File(releaseKeystore).exists()) ? signingConfigs.release : signingConfigs.debug
+            // Phase 1.6 — 开启代码混淆与资源压缩，减小 APK 体积
+            shrinkResources true
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+flutter {
+    source '../..'
+}
