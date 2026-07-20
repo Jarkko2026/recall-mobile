@@ -31,6 +31,10 @@
 		<key>NSAllowsArbitraryLoads</key>
 		<false/>
 	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>Recall 需要相机权限以拍摄文档/图片并 OCR 识别为文字</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Recall 需要相册权限以选取图片并 OCR 识别为文字</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

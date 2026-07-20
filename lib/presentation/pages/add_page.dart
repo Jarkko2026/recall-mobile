@@ -1,8 +1,11 @@
 // lib/presentation/pages/add_page.dart
-// 添加 Modal - 文本/链接/拍照/文件/语音 Tab
+// 添加 Modal - 文本/链接/拍照(OCR)/文件/语音 Tab
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../core/theme/design_tokens.dart';
 import '../../data/models/models.dart';
 import '../../data/repositories/item_repository.dart';
@@ -25,6 +28,10 @@ class _AddPageState extends ConsumerState<AddPage> with SingleTickerProviderStat
   bool _autoOrganize = true;
   bool _saving = false;
 
+  // 拍照/图片 OCR
+  XFile? _image;
+  String? _imageDataUrl; // data:image/...;base64,...
+
   @override
   void initState() {
     super.initState();
@@ -40,36 +47,87 @@ class _AddPageState extends ConsumerState<AddPage> with SingleTickerProviderStat
     super.dispose();
   }
 
+  Future<void> _pickImage(ImageSource src) async {
+    try {
+      final f = await ImagePicker().pickImage(source: src, maxWidth: 1600, imageQuality: 85);
+      if (f == null) return;
+      final bytes = await f.readAsBytes();
+      final mime = f.mimeType ?? 'image/jpeg';
+      if (mounted) {
+        setState(() {
+          _image = f;
+          _imageDataUrl = 'data:$mime;base64,${base64Encode(bytes)}';
+          if (_titleCtrl.text.trim().isEmpty) {
+            _titleCtrl.text = f.name.replaceAll(RegExp(r'\.[^.]+$'), '');
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) showRecallToast(context, '选取失败：$e', isError: true);
+    }
+  }
+
   Future<void> _save(ItemType type) async {
     if (_titleCtrl.text.trim().isEmpty) {
       showRecallToast(context, '请输入标题', isError: true);
       return;
     }
+    // 文件/语音导入暂未支持（依赖未就绪），诚实提示，避免存入空 item
+    if (type == ItemType.file || type == ItemType.audio) {
+      showRecallToast(context, '文件/语音导入即将支持，请先用文本 / 链接 / 拍照');
+      return;
+    }
+
     setState(() => _saving = true);
     final ctrl = ref.read(itemsControllerProvider.notifier);
     final auth = ref.read(authControllerProvider).value;
     final userId = auth?.userId ?? 'u_local';
-    final draft = Item.draft(
-      userId: userId,
-      type: type,
-      title: _titleCtrl.text.trim(),
-      content: type == ItemType.text ? _contentCtrl.text.trim() : null,
-      url: type == ItemType.link ? _urlCtrl.text.trim() : null,
-      source: type == ItemType.scan ? ItemSource.scan
-            : type == ItemType.audio ? ItemSource.asr
-            : ItemSource.manual,
-    );
+    String? content;
+
     try {
+      if (type == ItemType.text) {
+        content = _contentCtrl.text.trim();
+        if (content.isEmpty) {
+          showRecallToast(context, '请输入内容', isError: true);
+          setState(() => _saving = false);
+          return;
+        }
+      } else if (type == ItemType.scan) {
+        if (_imageDataUrl == null) {
+          showRecallToast(context, '请先选取图片', isError: true);
+          setState(() => _saving = false);
+          return;
+        }
+        showRecallToast(context, 'OCR 识别中…');
+        final ocr = await ref.read(apiClientProvider).call(
+          'ocr-worker',
+          method: 'POST',
+          path: '/ocr',
+          body: {'dataUrl': _imageDataUrl},
+        );
+        final text = (ocr['text'] as String?) ?? '';
+        final summary = (ocr['summary'] as String?) ?? '';
+        content = (summary.isNotEmpty ? '【视觉摘要】$summary\n\n' : '') + text;
+        if (content.trim().isEmpty) {
+          showRecallToast(context, '未识别到文字', isError: true);
+          setState(() => _saving = false);
+          return;
+        }
+      }
+
+      final draft = Item.draft(
+        userId: userId,
+        type: type,
+        title: _titleCtrl.text.trim(),
+        content: content,
+        url: type == ItemType.link ? _urlCtrl.text.trim() : null,
+        source: type == ItemType.scan ? ItemSource.scan : ItemSource.manual,
+      );
       final item = await ctrl.add(draft, autoOrganize: _autoOrganize);
-      // 后端设计：items-api 创建 item 后 status=pending，由前端负责调 llm-proxy /organize 触发 AI 整理
-      // 异步触发，不阻塞 UI（llm-proxy 需要 10-30 秒做 3 轮 LLM 调用）
+      // 后端 items-api 创建后 status=pending，前端异步触发 llm-proxy /organize
       if (_autoOrganize) {
         final api = ref.read(apiClientProvider);
-        api.call('llm-proxy', method: 'POST', path: '/organize', body: {'itemId': item.id}).then((_) {
-          // 整理成功，timeline 的 5 秒轮询会自动刷新状态
-        }).catchError((e) {
-          // 整理失败不阻塞 UI，item 保持 pending，用户可手动重试
-        });
+        api.call('llm-proxy', method: 'POST', path: '/organize', body: {'itemId': item.id}).then((_) {}).catchError((_) {});
       }
       if (mounted) {
         showRecallToast(context, '已存入，AI 正在整理...');
@@ -110,8 +168,8 @@ class _AddPageState extends ConsumerState<AddPage> with SingleTickerProviderStat
                 _textTab(),
                 _linkTab(),
                 _scanTab(),
-                _fileTab(),
-                _audioTab(),
+                _comingSoonTab('文件导入', 'PDF / Word / Markdown / TXT 文件解析导入，即将支持。请先用文本或链接。'),
+                _comingSoonTab('语音录入', '语音转文字导入，即将支持。请先用文本或链接。'),
               ],
             ),
           ),
@@ -189,98 +247,78 @@ class _AddPageState extends ConsumerState<AddPage> with SingleTickerProviderStat
     return Padding(
       padding: const EdgeInsets.all(AppSpacing.s4),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          AspectRatio(
-            aspectRatio: 4/3,
-            child: Container(
-              decoration: BoxDecoration(
-                color: AppColors.lightBgTertiary,
+          if (_image != null)
+            AspectRatio(
+              aspectRatio: 4 / 3,
+              child: ClipRRect(
                 borderRadius: BorderRadius.circular(AppRadius.lg),
-                border: Border.all(color: AppColors.primary500.withOpacity(0.3), style: BorderStyle.solid, width: 2),
+                child: Image.memory(
+                  _imageBytes(),
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(color: AppColors.lightBgTertiary, child: const Icon(Icons.broken_image, size: 48)),
+                ),
               ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.document_scanner_outlined, size: 64, color: AppColors.primary500),
-                  const SizedBox(height: 8),
-                  const Text('点击启动 VisionKit 文档扫描', style: TextStyle(color: AppColors.primary500)),
-                ],
+            )
+          else
+            AspectRatio(
+              aspectRatio: 4 / 3,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: AppColors.lightBgTertiary,
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  border: Border.all(color: AppColors.primary500.withOpacity(0.3), width: 2),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.document_scanner_outlined, size: 56, color: AppColors.primary500),
+                    const SizedBox(height: 8),
+                    Text('拍照或选图，OCR 自动识别文字', style: TextStyle(color: AppColors.primary500, fontSize: AppFonts.sm)),
+                  ],
+                ),
               ),
             ),
+          const SizedBox(height: AppSpacing.s3),
+          Row(
+            children: [
+              Expanded(child: AppButton(label: '拍照', icon: Icons.camera_alt_outlined, variant: AppButtonVariant.secondary, onPressed: () => _pickImage(ImageSource.camera))),
+              const SizedBox(width: AppSpacing.s2),
+              Expanded(child: AppButton(label: '相册', icon: Icons.photo_outlined, variant: AppButtonVariant.secondary, onPressed: () => _pickImage(ImageSource.gallery))),
+            ],
           ),
-          const SizedBox(height: AppSpacing.s4),
-          AppInput(controller: _titleCtrl, label: '标题', hint: '为这次扫描命名'),
+          const SizedBox(height: AppSpacing.s3),
+          AppInput(controller: _titleCtrl, label: '标题', hint: '为这次识别命名'),
         ],
       ),
     );
   }
 
-  Widget _fileTab() {
-    return Padding(
-      padding: const EdgeInsets.all(AppSpacing.s4),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.s8),
-            decoration: BoxDecoration(
-              color: AppColors.lightBgTertiary,
-              borderRadius: BorderRadius.circular(AppRadius.lg),
-            ),
-            child: Column(
-              children: [
-                const Icon(Icons.cloud_upload_outlined, size: 48, color: AppColors.primary500),
-                const SizedBox(height: 8),
-                const Text('点击选择文件', style: TextStyle(color: AppColors.primary500, fontSize: AppFonts.base)),
-                const SizedBox(height: 4),
-                const Text('支持 PDF / Word / Markdown / TXT', style: TextStyle(color: Color(0xFF9CA0A8), fontSize: AppFonts.xs)),
-              ],
-            ),
-          ),
-          const SizedBox(height: AppSpacing.s3),
-          AppInput(controller: _titleCtrl, label: '标题', hint: '为这个文件命名'),
-        ],
+  // 诚实占位：未实现的导入方式
+  Widget _comingSoonTab(String title, String desc) {
+    final theme = Theme.of(context);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.s6),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.hourglass_top, size: 56, color: AppColors.accent),
+            const SizedBox(height: AppSpacing.s3),
+            Text(title, style: theme.textTheme.titleLarge),
+            const SizedBox(height: AppSpacing.s2),
+            Text(desc, textAlign: TextAlign.center, style: theme.textTheme.bodyMedium?.copyWith(color: theme.hintColor)),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _audioTab() {
-    return Padding(
-      padding: const EdgeInsets.all(AppSpacing.s4),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.s6),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(colors: [AppColors.primary500, AppColors.primary700]),
-              borderRadius: BorderRadius.circular(AppRadius.lg),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 56, height: 56,
-                  decoration: const BoxDecoration(color: Colors.white24, shape: BoxShape.circle),
-                  child: const Icon(Icons.mic, color: Colors.white, size: 32),
-                ),
-                const SizedBox(width: AppSpacing.s4),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
-                      Text('点击录音', style: TextStyle(color: Colors.white, fontSize: AppFonts.lg, fontWeight: FontWeight.w600)),
-                      SizedBox(height: 2),
-                      Text('00:00 / 最长 5 分钟', style: TextStyle(color: Colors.white70, fontSize: AppFonts.sm)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: AppSpacing.s3),
-          AppInput(controller: _titleCtrl, label: '标题', hint: '为这段录音命名'),
-        ],
-      ),
-    );
+  // _image 的 bytes（用于预览）
+  Uint8List _imageBytes() {
+    final b64 = (_imageDataUrl ?? '').split('base64,').last;
+    return base64Decode(b64);
   }
 
   void _showTagPicker() {

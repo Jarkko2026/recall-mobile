@@ -1,7 +1,7 @@
 name: recall
 description: "Recall - 自动整理 · 高质量回看 · 主题串联（移动端 iOS / Android）"
 publish_to: 'none'
-version: 1.0.8+8
+version: 1.0.9+9
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
@@ -37,6 +37,9 @@ dependencies:
 
   # 字体（运行时拉取 Noto Serif SC，对齐 web 端编辑级衬线风格）
   google_fonts: ^6.3.3
+
+  # 图片选取（拍照/相册导入 + OCR）-- 用 0.8.x 兼容当前 AGP 8.7.0
+  image_picker: ^0.8.9
 
 dev_dependencies:
   flutter_test:
