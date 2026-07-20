@@ -1,7 +1,7 @@
 name: recall
 description: "Recall - 自动整理 · 高质量回看 · 主题串联（移动端 iOS / Android）"
 publish_to: 'none'
-version: 1.0.6+6
+version: 1.0.7+7
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
@@ -34,6 +34,9 @@ dependencies:
 
   # Markdown 渲染
   flutter_markdown: ^0.6.18
+
+  # 字体（运行时拉取 Noto Serif SC，对齐 web 端编辑级衬线风格）
+  google_fonts: ^6.3.3
 
 dev_dependencies:
   flutter_test:

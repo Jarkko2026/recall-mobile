@@ -1,7 +1,9 @@
 // lib/core/theme/app_theme.dart
-// Recall 主题：light + dark 两套 Material 3 主题
+// Recall 主题：对齐 web 端 v3.7.2 编辑级风格
+// 暖纸背景 + 海军蓝/深蓝/琥珀 + Noto Serif SC 衬线标题 + 毛玻璃卡片
 
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'design_tokens.dart';
 
 class AppTheme {
@@ -16,6 +18,8 @@ class AppTheme {
     textSecondary: AppColors.lightTextSecondary,
     textTertiary: AppColors.lightTextTertiary,
     border: AppColors.lightBorder,
+    glassBg: AppColors.glassBgLight,
+    glassBorder: AppColors.glassBorderLight,
   );
 
   static ThemeData dark = _build(
@@ -27,6 +31,8 @@ class AppTheme {
     textSecondary: AppColors.darkTextSecondary,
     textTertiary: AppColors.darkTextTertiary,
     border: AppColors.darkBorder,
+    glassBg: AppColors.glassBgDark,
+    glassBorder: AppColors.glassBorderDark,
   );
 
   static ThemeData _build({
@@ -38,86 +44,82 @@ class AppTheme {
     required Color textSecondary,
     required Color textTertiary,
     required Color border,
+    required Color glassBg,
+    required Color glassBorder,
   }) {
     final isLight = brightness == Brightness.light;
     final colorScheme = ColorScheme(
       brightness: brightness,
       primary: AppColors.primary500,
       onPrimary: Colors.white,
-      secondary: AppColors.primary100,
-      onSecondary: AppColors.primary700,
+      secondary: AppColors.accent,
+      onSecondary: Colors.white,
       error: AppColors.danger,
       onError: Colors.white,
-      surface: bg,
+      surface: bgSecondary,
       onSurface: text,
       background: bg,
       onBackground: text,
     );
 
+    // 标题用衬线（对齐 web），正文留系统无衬线保可读性
+    TextStyle serif({
+      double fontSize = AppFonts.base,
+      FontWeight fontWeight = FontWeight.w400,
+      Color color = Colors.transparent,
+      double height = AppFonts.normal,
+    }) =>
+        GoogleFonts.notoSerifSc(
+          fontSize: fontSize,
+          fontWeight: fontWeight,
+          color: color,
+          height: height,
+        );
+
     return ThemeData(
       useMaterial3: true,
       brightness: brightness,
       colorScheme: colorScheme,
-      scaffoldBackgroundColor: bg,
+      scaffoldBackgroundColor: Colors.transparent,
       canvasColor: bg,
       cardColor: bgSecondary,
       dividerColor: border,
       appBarTheme: AppBarTheme(
-        backgroundColor: bg,
+        backgroundColor: glassBg,
         foregroundColor: text,
         elevation: 0,
-        scrolledUnderElevation: 0.5,
+        scrolledUnderElevation: 0,
         centerTitle: false,
-        titleTextStyle: TextStyle(
-          color: text,
+        titleTextStyle: serif(
           fontSize: AppFonts.lg,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w700,
+          color: text,
           height: AppFonts.tight,
         ),
       ),
       textTheme: TextTheme(
-        displayLarge: TextStyle(
-            fontSize: AppFonts.xxl,
-            fontWeight: FontWeight.w700,
-            color: text,
-            height: AppFonts.tight),
-        displayMedium: TextStyle(
-            fontSize: AppFonts.xl,
-            fontWeight: FontWeight.w700,
-            color: text,
-            height: AppFonts.tight),
-        headlineSmall: TextStyle(
-            fontSize: AppFonts.lg,
-            fontWeight: FontWeight.w600,
-            color: text,
-            height: AppFonts.tight),
-        titleLarge: TextStyle(
-            fontSize: AppFonts.md,
-            fontWeight: FontWeight.w600,
-            color: text,
-            height: AppFonts.tight),
+        displayLarge: serif(
+            fontSize: AppFonts.xxl, fontWeight: FontWeight.w700, color: text, height: AppFonts.tight),
+        displayMedium: serif(
+            fontSize: AppFonts.xl, fontWeight: FontWeight.w700, color: text, height: AppFonts.tight),
+        headlineSmall: serif(
+            fontSize: AppFonts.lg, fontWeight: FontWeight.w600, color: text, height: AppFonts.tight),
+        titleLarge: serif(
+            fontSize: AppFonts.md, fontWeight: FontWeight.w600, color: text, height: AppFonts.tight),
         titleMedium: TextStyle(
-            fontSize: AppFonts.base,
-            fontWeight: FontWeight.w500,
-            color: text,
-            height: AppFonts.normal),
-        bodyLarge: TextStyle(
-            fontSize: AppFonts.base, color: text, height: AppFonts.normal),
-        bodyMedium: TextStyle(
-            fontSize: AppFonts.sm, color: textSecondary, height: AppFonts.normal),
-        bodySmall: TextStyle(
-            fontSize: AppFonts.xs, color: textTertiary, height: AppFonts.normal),
+            fontSize: AppFonts.base, fontWeight: FontWeight.w600, color: text, height: AppFonts.normal),
+        bodyLarge: TextStyle(fontSize: AppFonts.base, color: text, height: AppFonts.normal),
+        bodyMedium: TextStyle(fontSize: AppFonts.sm, color: textSecondary, height: AppFonts.normal),
+        bodySmall: TextStyle(fontSize: AppFonts.xs, color: textTertiary, height: AppFonts.normal),
         labelLarge: TextStyle(
-            fontSize: AppFonts.base,
-            color: text,
-            fontWeight: FontWeight.w500),
+            fontSize: AppFonts.base, color: text, fontWeight: FontWeight.w600),
       ),
       iconTheme: IconThemeData(color: text, size: 22),
       cardTheme: CardThemeData(
-        color: bgSecondary,
+        color: glassBg,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.lg),
+          borderRadius: BorderRadius.circular(AppRadius.xl),
         ),
         margin: EdgeInsets.zero,
       ),
@@ -127,45 +129,45 @@ class AppTheme {
         contentPadding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.s4, vertical: AppSpacing.s3),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.md),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
           borderSide: BorderSide(color: border),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.md),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
           borderSide: BorderSide(color: border),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.md),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
           borderSide: const BorderSide(color: AppColors.primary500, width: 1.5),
         ),
         hintStyle: TextStyle(color: textTertiary, fontSize: AppFonts.base),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ButtonStyle(
-          backgroundColor: MaterialStateProperty.resolveWith((states) {
-            if (states.contains(MaterialState.disabled)) {
+          backgroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.disabled)) {
               return AppColors.primary500.withOpacity(0.5);
             }
             return AppColors.primary500;
           }),
-          foregroundColor: MaterialStateProperty.all(Colors.white),
-          elevation: MaterialStateProperty.all(0),
-          padding: MaterialStateProperty.all(const EdgeInsets.symmetric(
+          foregroundColor: WidgetStateProperty.all(Colors.white),
+          elevation: WidgetStateProperty.all(0),
+          padding: WidgetStateProperty.all(const EdgeInsets.symmetric(
               horizontal: AppSpacing.s5, vertical: AppSpacing.s3 + 2)),
-          shape: MaterialStateProperty.all(RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.md),
+          shape: WidgetStateProperty.all(RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.lg),
           )),
-          textStyle: MaterialStateProperty.all(const TextStyle(
+          textStyle: WidgetStateProperty.all(const TextStyle(
               fontSize: AppFonts.base, fontWeight: FontWeight.w600)),
-          minimumSize: MaterialStateProperty.all(const Size(0, 48)),
+          minimumSize: WidgetStateProperty.all(const Size(0, 48)),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: ButtonStyle(
-          foregroundColor: MaterialStateProperty.all(AppColors.primary500),
-          padding: MaterialStateProperty.all(const EdgeInsets.symmetric(
+          foregroundColor: WidgetStateProperty.all(AppColors.primary500),
+          padding: WidgetStateProperty.all(const EdgeInsets.symmetric(
               horizontal: AppSpacing.s4, vertical: AppSpacing.s2)),
-          textStyle: MaterialStateProperty.all(const TextStyle(
+          textStyle: WidgetStateProperty.all(const TextStyle(
               fontSize: AppFonts.base, fontWeight: FontWeight.w500)),
         ),
       ),
@@ -184,7 +186,7 @@ class AppTheme {
       bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: bg,
         shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xxl)),
         ),
       ),
       snackBarTheme: SnackBarThemeData(
@@ -194,7 +196,7 @@ class AppTheme {
             fontSize: AppFonts.base),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.md),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
         ),
       ),
     );

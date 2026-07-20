@@ -81,6 +81,9 @@ class ItemRepository {
   }
 
   // ===== utilities =====
+  // 后端 toClient 返回 original_preview（原文截断 2000 字）而非 content；
+  // 且 organize 写回的 summary_sections / summary_long / fail_reason 必须在此完整解析，
+  // 否则详情页「内容/长摘要/AI 整理详情/失败原因」会空白（与 web 端表现不一致）。
   Item _itemFromBackend(Map<String, dynamic> m) {
     final id = (m['_id'] ?? m['id'] ?? '').toString();
     return Item(
@@ -88,9 +91,14 @@ class ItemRepository {
       userId: (m['user_id'] ?? '').toString(),
       type: ItemTypeX.from((m['type'] ?? 'text').toString()),
       title: (m['title'] ?? '').toString(),
-      content: m['content'] as String?,
+      content: (m['original_preview'] as String?) ?? (m['content'] as String?),
       url: m['url'] as String?,
       summary: m['summary'] as String?,
+      summarySections: m['summary_sections'] is Map
+          ? Map<String, dynamic>.from(m['summary_sections'])
+          : null,
+      summaryLong: m['summary_long'] as String?,
+      failReason: m['fail_reason'] as String?,
       tagIds: (m['tag_ids'] as List?)?.map((e) => e.toString()).toList() ?? const [],
       domainId: m['domain_id'] as String?,
       topicId: m['topic_id'] as String?,

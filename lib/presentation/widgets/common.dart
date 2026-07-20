@@ -2,6 +2,7 @@
 // 通用组件库 - Recall 16 个核心组件
 // 详见方案 §3.4
 
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import '../../core/theme/design_tokens.dart';
@@ -170,19 +171,28 @@ class AppCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Material(
-      color: theme.cardColor,
-      borderRadius: BorderRadius.circular(AppRadius.lg),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
+    final isLight = theme.brightness == Brightness.light;
+    final glassBg = isLight ? AppColors.glassBgLight : AppColors.glassBgDark;
+    final glassBorder = isLight ? AppColors.glassBorderLight : AppColors.glassBorderDark;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppRadius.xl),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
         child: Container(
-          padding: padding,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadius.lg),
+            color: glassBg,
+            borderRadius: BorderRadius.circular(AppRadius.xl),
+            border: Border.all(color: glassBorder, width: 1),
             boxShadow: AppShadows.md,
           ),
-          child: child,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(AppRadius.xl),
+              child: Padding(padding: padding, child: child),
+            ),
+          ),
         ),
       ),
     );

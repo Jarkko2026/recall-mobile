@@ -256,7 +256,6 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
         return PdfPreview(url: item.url ?? 'document.pdf');
       case ItemType.link:
       case ItemType.text:
-      default:
         return MarkdownView(data: item.content ?? '(该内容暂无正文)');
     }
   }
@@ -274,7 +273,7 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(leading: const Icon(Icons.edit), title: const Text('编辑'), onTap: () { Navigator.pop(context); _showEditDialog(item); }),
-            ListTile(leading: const Icon(Icons.push_pin_outlined), title: const Text('加入主题'), onTap: () { Navigator.pop(context); showRecallToast(context, '主题选择功能开发中'); }),
+            ListTile(leading: const Icon(Icons.push_pin_outlined), title: const Text('加入主题'), onTap: () { Navigator.pop(context); _showTopicPicker(item); }),
             ListTile(leading: const Icon(Icons.share), title: const Text('分享'), onTap: () { Navigator.pop(context); _shareItem(item); }),
             ListTile(
               leading: const Icon(Icons.delete_outline, color: AppColors.danger),
@@ -398,6 +397,58 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
         if (mounted) showRecallToast(context, '已添加标签');
       } catch (e) {
         if (mounted) showRecallToast(context, '添加失败：$e', isError: true);
+      }
+    }
+  }
+
+  /// 加入主题：从已有主题选或新建
+  Future<void> _showTopicPicker(Item item) async {
+    final cats = ref.read(allCategoriesProvider);
+    final topics = cats.where((c) => c.level == 2).toList();
+    final ctrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('加入主题'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (topics.isNotEmpty) ...[
+                const Text('已有主题', style: TextStyle(fontWeight: FontWeight.w600, fontSize: AppFonts.sm)),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8, runSpacing: 8,
+                  children: topics.map((t) => ActionChip(
+                    label: Text(t.name),
+                    onPressed: () { ctrl.text = t.name; },
+                  )).toList(),
+                ),
+                const SizedBox(height: 12),
+              ],
+              TextField(
+                controller: ctrl,
+                decoration: const InputDecoration(hintText: '输入或选择主题名'),
+                autofocus: true,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('确定')),
+        ],
+      ),
+    );
+    if (ok == true && ctrl.text.trim().isNotEmpty) {
+      try {
+        await ref.read(itemsControllerProvider.notifier).patch(item.id, {
+          'topic_name': ctrl.text.trim(),
+        });
+        if (mounted) showRecallToast(context, '已加入主题');
+      } catch (e) {
+        if (mounted) showRecallToast(context, '加入失败：$e', isError: true);
       }
     }
   }

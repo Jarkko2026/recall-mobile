@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/design_tokens.dart';
 import '../../services/api_client.dart';
-import '../widgets/common.dart';
 
 class CopilotPage extends ConsumerStatefulWidget {
   const CopilotPage({Key? key}) : super(key: key);
@@ -45,7 +44,7 @@ class _CopilotPageState extends ConsumerState<CopilotPage> {
         },
       );
       if (!mounted) return;
-      final reply = res is Map ? (res['reply'] as String? ?? res['answer'] as String? ?? '无回复') : '无回复';
+      final reply = (res['reply'] as String?) ?? (res['answer'] as String?) ?? '无回复';
       setState(() {
         _messages.add(_ChatMessage(role: 'assistant', content: reply));
         _loading = false;

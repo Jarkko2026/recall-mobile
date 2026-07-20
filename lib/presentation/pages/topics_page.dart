@@ -116,7 +116,7 @@ class _DomainSection extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(AppSpacing.s4, AppSpacing.s2, AppSpacing.s4, AppSpacing.s2),
       child: AppCard(
-        onTap: () => showRecallToast(context, '${domain.name}：$domainCount 条收藏'),
+        onTap: () => _showDomainItems(context, domain, allItems),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -173,6 +173,45 @@ class _DomainSection extends ConsumerWidget {
       ),
     );
   }
+}
+
+// 领域下全部收藏（点击领域卡片 -> 展示该领域 items，可跳详情）
+void _showDomainItems(BuildContext context, Category domain, List<Item> allItems) {
+  final items = allItems.where((i) => i.domainId == domain.id).toList();
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    builder: (_) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.s4),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('${domain.name}（${items.length} 条）',
+                style: Theme.of(_).textTheme.titleLarge),
+            const SizedBox(height: AppSpacing.s3),
+            if (items.isEmpty)
+              const Text('该领域下还没有收藏')
+            else
+              ...items.map((i) => ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(i.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    subtitle: i.summary != null
+                        ? Text(i.summary!, maxLines: 1, overflow: TextOverflow.ellipsis)
+                        : null,
+                    onTap: () {
+                      Navigator.pop(context);
+                      context.push('/item/${i.id}');
+                    },
+                  )),
+            const SizedBox(height: AppSpacing.s4),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 // === 主题详情页 ===
