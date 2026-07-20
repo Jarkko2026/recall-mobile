@@ -449,7 +449,8 @@ class RecallBottomTabBar extends StatelessWidget {
                   _tab(1, Icons.grid_view, '主题', context),
                   const SizedBox(width: 64),
                   _tab(2, Icons.search, '搜索', context),
-                  _tab(3, Icons.person, '我的', context),
+                  _tab(3, Icons.auto_awesome, '助手', context),
+                  _tab(4, Icons.person, '我的', context),
                 ],
               ),
               Positioned(
@@ -458,7 +459,7 @@ class RecallBottomTabBar extends StatelessWidget {
                 right: 0,
                 child: Center(
                   child: GestureDetector(
-                    onTap: () => onTap(4),
+                    onTap: () => onTap(5),
                     child: Container(
                       width: 56,
                       height: 56,

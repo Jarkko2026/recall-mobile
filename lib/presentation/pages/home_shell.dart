@@ -11,7 +11,8 @@ class HomeShell extends StatelessWidget {
   int _indexFromLocation(String loc) {
     if (loc.startsWith('/topics')) return 1;
     if (loc.startsWith('/search')) return 2;
-    if (loc.startsWith('/settings')) return 3;
+    if (loc.startsWith('/copilot')) return 3;
+    if (loc.startsWith('/settings')) return 4;
     return 0;
   }
 
@@ -28,8 +29,9 @@ class HomeShell extends StatelessWidget {
             case 0: context.go('/timeline'); break;
             case 1: context.go('/topics'); break;
             case 2: context.go('/search'); break;
-            case 3: context.go('/settings'); break;
-            case 4: context.push('/add'); break;
+            case 3: context.go('/copilot'); break;
+            case 4: context.go('/settings'); break;
+            case 5: context.push('/add'); break;
           }
         },
       ),

@@ -86,73 +86,85 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     final theme = Theme.of(context);
     return Scaffold(
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.s6, vertical: AppSpacing.s8),
-          child: Column(
-            children: [
-              const SizedBox(height: AppSpacing.s6),
-              Container(
-                width: 92,
-                height: 92,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [AppColors.primary500, AppColors.primary700],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.s5, vertical: AppSpacing.s6),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 440),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Hero
+                  Container(
+                    width: 88,
+                    height: 88,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [AppColors.primary500, AppColors.primary700],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: AppShadows.lg,
+                    ),
+                    child: const Icon(Icons.psychology_outlined, size: 44, color: Colors.white),
                   ),
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: AppShadows.md,
-                ),
-                child:
-                    const Icon(Icons.psychology_outlined, size: 48, color: Colors.white),
-              ),
-              const SizedBox(height: AppSpacing.s4),
-              Text('Recall', style: theme.textTheme.displayMedium),
-              const SizedBox(height: AppSpacing.s1),
-              Text('自动整理 · 高质量回看 · 主题串联',
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(color: theme.hintColor)),
-              const SizedBox(height: AppSpacing.s8),
-              AppInput(
-                controller: _u,
-                label: '用户名',
-                hint: '3-32 位字母数字与 . _ - : + @',
-              ),
-              const SizedBox(height: AppSpacing.s3),
-              AppInput(
-                controller: _p,
-                label: '密码',
-                hint: '至少 6 位',
-                obscure: true,
-              ),
-              const SizedBox(height: AppSpacing.s4),
-              if (_msg != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.s3),
-                  child: Text(
-                    _msg!,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                        color: _msgError ? AppColors.danger : AppColors.success),
+                  const SizedBox(height: AppSpacing.s4),
+                  Text('Recall', style: theme.textTheme.displayMedium),
+                  const SizedBox(height: AppSpacing.s1),
+                  Text('自动整理 · 高质量回看 · 主题串联',
+                      style: theme.textTheme.bodyMedium?.copyWith(color: theme.hintColor)),
+                  const SizedBox(height: AppSpacing.s6),
+                  // 毛玻璃表单卡片
+                  AppCard(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        AppInput(
+                          controller: _u,
+                          label: '用户名',
+                          hint: '3-32 位字母数字与 . _ - : + @',
+                        ),
+                        const SizedBox(height: AppSpacing.s3),
+                        AppInput(
+                          controller: _p,
+                          label: '密码',
+                          hint: '至少 6 位',
+                          obscure: true,
+                        ),
+                        const SizedBox(height: AppSpacing.s3),
+                        if (_msg != null)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: AppSpacing.s2),
+                            child: Text(
+                              _msg!,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: _msgError ? AppColors.danger : AppColors.success),
+                            ),
+                          ),
+                        AppButton(
+                          label: _busy ? '处理中…' : '登录',
+                          onPressed: _busy ? null : _login,
+                          fullWidth: true,
+                        ),
+                        const SizedBox(height: AppSpacing.s2),
+                        AppButton(
+                          label: '注册新账号',
+                          variant: AppButtonVariant.secondary,
+                          onPressed: _busy ? null : _register,
+                          fullWidth: true,
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              AppButton(
-                label: _busy ? '处理中…' : '登录',
-                onPressed: _busy ? null : _login,
-                fullWidth: true,
+                  const SizedBox(height: AppSpacing.s6),
+                  Text('数据存于云端 · 与 web 端共享同一个账号',
+                      style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor)),
+                ],
               ),
-              const SizedBox(height: AppSpacing.s2),
-              AppButton(
-                label: '注册新账号',
-                variant: AppButtonVariant.secondary,
-                onPressed: _busy ? null : _register,
-                fullWidth: true,
-              ),
-              const Spacer(),
-              Text('数据存于云端 · 与 web 端共享同一个账号',
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: theme.hintColor)),
-            ],
+            ),
           ),
         ),
       ),

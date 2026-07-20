@@ -1,7 +1,7 @@
 name: recall
 description: "Recall - 自动整理 · 高质量回看 · 主题串联（移动端 iOS / Android）"
 publish_to: 'none'
-version: 1.0.7+7
+version: 1.0.8+8
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
