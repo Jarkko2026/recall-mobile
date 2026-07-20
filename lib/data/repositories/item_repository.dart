@@ -123,6 +123,11 @@ final itemRepositoryProvider = Provider<ItemRepository>((ref) {
   return ItemRepository(ref.watch(apiClientProvider));
 });
 
+/// 知识谱系聚合数据（/items/graph）-- 用于谱系可视化
+final graphDataProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+  return ref.watch(itemRepositoryProvider).graph();
+});
+
 /// 全量 items 状态（带加载/失败态）
 class ItemsState {
   final List<Item> items;

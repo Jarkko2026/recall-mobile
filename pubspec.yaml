@@ -1,7 +1,7 @@
 name: recall
 description: "Recall - 自动整理 · 高质量回看 · 主题串联（移动端 iOS / Android）"
 publish_to: 'none'
-version: 1.0.9+9
+version: 1.1.0+10
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
@@ -40,6 +40,9 @@ dependencies:
 
   # 图片选取（拍照/相册导入 + OCR）-- 用 0.8.x 兼容当前 AGP 8.7.0
   image_picker: ^0.8.9
+
+  # 文件选取（txt/md/csv/json 文本文件导入）
+  file_picker: ^8.1.4
 
 dev_dependencies:
   flutter_test:

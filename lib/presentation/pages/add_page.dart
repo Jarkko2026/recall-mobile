@@ -1,7 +1,9 @@
 // lib/presentation/pages/add_page.dart
 // 添加 Modal - 文本/链接/拍照(OCR)/文件/语音 Tab
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -31,6 +33,10 @@ class _AddPageState extends ConsumerState<AddPage> with SingleTickerProviderStat
   // 拍照/图片 OCR
   XFile? _image;
   String? _imageDataUrl; // data:image/...;base64,...
+
+  // 文件导入（文本类）
+  String? _fileContent;
+  String? _fileName;
 
   @override
   void initState() {
@@ -67,14 +73,44 @@ class _AddPageState extends ConsumerState<AddPage> with SingleTickerProviderStat
     }
   }
 
+  Future<void> _pickFile() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: const ['txt', 'md', 'markdown', 'csv', 'json', 'log', 'html'],
+      );
+      if (result == null || result.files.isEmpty) return;
+      final f = result.files.first;
+      final path = f.path;
+      if (path == null) {
+        if (mounted) showRecallToast(context, '无法读取该文件路径', isError: true);
+        return;
+      }
+      final bytes = await File(path).readAsBytes();
+      final raw = utf8.decode(bytes, allowMalformed: true);
+      final trimmed = raw.length > 60000 ? raw.substring(0, 60000) : raw;
+      if (mounted) {
+        setState(() {
+          _fileContent = trimmed;
+          _fileName = f.name;
+          if (_titleCtrl.text.trim().isEmpty) {
+            _titleCtrl.text = f.name.replaceAll(RegExp(r'\.[^.]+$'), '');
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) showRecallToast(context, '选取失败：$e', isError: true);
+    }
+  }
+
   Future<void> _save(ItemType type) async {
     if (_titleCtrl.text.trim().isEmpty) {
       showRecallToast(context, '请输入标题', isError: true);
       return;
     }
-    // 文件/语音导入暂未支持（依赖未就绪），诚实提示，避免存入空 item
-    if (type == ItemType.file || type == ItemType.audio) {
-      showRecallToast(context, '文件/语音导入即将支持，请先用文本 / 链接 / 拍照');
+    // 语音导入暂未支持（依赖未就绪），诚实提示，避免存入空 item
+    if (type == ItemType.audio) {
+      showRecallToast(context, '语音导入即将支持，请先用文本 / 链接 / 拍照 / 文件');
       return;
     }
 
@@ -110,6 +146,13 @@ class _AddPageState extends ConsumerState<AddPage> with SingleTickerProviderStat
         content = (summary.isNotEmpty ? '【视觉摘要】$summary\n\n' : '') + text;
         if (content.trim().isEmpty) {
           showRecallToast(context, '未识别到文字', isError: true);
+          setState(() => _saving = false);
+          return;
+        }
+      } else if (type == ItemType.file) {
+        content = _fileContent;
+        if (content == null || content.trim().isEmpty) {
+          showRecallToast(context, '请先选取文件', isError: true);
           setState(() => _saving = false);
           return;
         }
@@ -168,8 +211,8 @@ class _AddPageState extends ConsumerState<AddPage> with SingleTickerProviderStat
                 _textTab(),
                 _linkTab(),
                 _scanTab(),
-                _comingSoonTab('文件导入', 'PDF / Word / Markdown / TXT 文件解析导入，即将支持。请先用文本或链接。'),
-                _comingSoonTab('语音录入', '语音转文字导入，即将支持。请先用文本或链接。'),
+                _fileTab(),
+                _comingSoonTab('语音录入', '语音转文字导入，即将支持。请先用文本 / 链接 / 拍照 / 文件。'),
               ],
             ),
           ),
@@ -290,6 +333,61 @@ class _AddPageState extends ConsumerState<AddPage> with SingleTickerProviderStat
           ),
           const SizedBox(height: AppSpacing.s3),
           AppInput(controller: _titleCtrl, label: '标题', hint: '为这次识别命名'),
+        ],
+      ),
+    );
+  }
+
+  // 文件导入（txt/md/csv/json/log/html 文本文件）
+  Widget _fileTab() {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.all(AppSpacing.s4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (_fileName != null) ...[
+            Container(
+              padding: const EdgeInsets.all(AppSpacing.s4),
+              decoration: BoxDecoration(
+                color: AppColors.primary50,
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+                border: Border.all(color: AppColors.primary100),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.insert_drive_file_outlined, color: AppColors.primary500),
+                  const SizedBox(width: AppSpacing.s2),
+                  Expanded(child: Text(_fileName!, style: const TextStyle(color: AppColors.primary700, fontWeight: FontWeight.w600))),
+                  IconButton(icon: const Icon(Icons.close, size: 18), onPressed: () => setState(() { _fileContent = null; _fileName = null; })),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.s2),
+            Text('${_fileContent?.length ?? 0} 字', style: theme.textTheme.bodySmall),
+          ] else
+            GestureDetector(
+              onTap: _pickFile,
+              child: Container(
+                padding: const EdgeInsets.all(AppSpacing.s8),
+                decoration: BoxDecoration(
+                  color: AppColors.lightBgTertiary,
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  border: Border.all(color: AppColors.primary500.withOpacity(0.3), width: 2),
+                ),
+                child: Column(
+                  children: [
+                    const Icon(Icons.cloud_upload_outlined, size: 48, color: AppColors.primary500),
+                    const SizedBox(height: 8),
+                    const Text('点击选择文件', style: TextStyle(color: AppColors.primary500, fontSize: AppFonts.base)),
+                    const SizedBox(height: 4),
+                    const Text('支持 txt / md / csv / json / log / html', style: TextStyle(color: Color(0xFF9CA0A8), fontSize: AppFonts.xs)),
+                  ],
+                ),
+              ),
+            ),
+          const SizedBox(height: AppSpacing.s3),
+          AppInput(controller: _titleCtrl, label: '标题', hint: '为这个文件命名'),
         ],
       ),
     );

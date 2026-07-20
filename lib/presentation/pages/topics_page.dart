@@ -1,5 +1,5 @@
 // lib/presentation/pages/topics_page.dart
-// 主题/领域聚合页
+// 知识谱系 - 领域/主题聚合（可折叠树 + graph 统计）
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -15,25 +15,25 @@ class TopicsPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final domains = ref.watch(domainCategoriesProvider);
     final theme = Theme.of(context);
-    final allItems = ref.watch(allItemsProvider);
-    final allCategories = ref.watch(allCategoriesProvider);
+    final graph = ref.watch(graphDataProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('主题')),
+      appBar: AppBar(title: const Text('知识谱系')),
       body: ListView(
         padding: const EdgeInsets.only(bottom: 80),
         children: [
-          // 顶部统计
+          // graph 统计头
           Padding(
             padding: const EdgeInsets.all(AppSpacing.s4),
-            child: Row(
-              children: [
-                _stat('总收藏', '${allItems.length}', theme),
-                const SizedBox(width: AppSpacing.s3),
-                _stat('领域', '${domains.length}', theme),
-                const SizedBox(width: AppSpacing.s3),
-                _stat('主题', '${allCategories.where((c) => c.level == 2).length}', theme),
-              ],
+            child: graph.when(
+              data: (g) => _GraphStatsCard(
+                total: (g['total_items'] as num?)?.toInt() ?? 0,
+                domains: (g['domain_count'] as num?)?.toInt() ?? 0,
+                topics: (g['topic_count'] as num?)?.toInt() ?? 0,
+                tags: (g['tag_count'] as num?)?.toInt() ?? 0,
+              ),
+              loading: () => const SizedBox(height: 88, child: Center(child: CircularProgressIndicator())),
+              error: (_, __) => const SizedBox(height: 88, child: Center(child: Text('统计加载失败'))),
             ),
           ),
 
@@ -58,7 +58,7 @@ class TopicsPage extends ConsumerWidget {
 
           const SizedBox(height: AppSpacing.s5),
 
-          // 领域/主题
+          // 领域/主题 可折叠树
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s4),
             child: Text('领域 / 主题', style: theme.textTheme.titleLarge),
@@ -66,99 +66,113 @@ class TopicsPage extends ConsumerWidget {
           const SizedBox(height: AppSpacing.s3),
 
           ...domains.map((d) {
-            final topics = allCategories
+            final topics = ref.watch(allCategoriesProvider)
                 .where((c) => c.level == 2 && c.parentId == d.id)
                 .toList();
-            return _DomainSection(domain: d, topics: topics, allItems: allItems);
+            return _DomainSection(domain: d, topics: topics, allItems: ref.watch(allItemsProvider));
           }),
         ],
       ),
     );
   }
+}
 
-  Widget _stat(String label, String value, ThemeData theme) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(AppSpacing.s4),
-        decoration: BoxDecoration(
-          color: theme.cardColor,
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(value,
-                style: theme.textTheme.displayMedium?.copyWith(
-                    color: AppColors.primary500, fontWeight: FontWeight.w700)),
-            Text(label, style: theme.textTheme.bodyMedium),
-          ],
-        ),
+/// graph 统计卡（4 格）
+class _GraphStatsCard extends StatelessWidget {
+  final int total;
+  final int domains;
+  final int topics;
+  final int tags;
+  const _GraphStatsCard({required this.total, required this.domains, required this.topics, required this.tags});
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tiles = [
+      ('总收藏', total, Icons.bookmark_outline),
+      ('领域', domains, Icons.folder_outlined),
+      ('主题', topics, Icons.label_outline),
+      ('标签', tags, Icons.tag),
+    ];
+    return AppCard(
+      child: Row(
+        children: tiles.map((t) {
+          return Expanded(
+            child: Column(
+              children: [
+                Icon(t.$3, size: 20, color: AppColors.primary500),
+                const SizedBox(height: 4),
+                Text('${t.$2}', style: theme.textTheme.titleLarge?.copyWith(color: AppColors.primary500, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 2),
+                Text(t.$1, style: theme.textTheme.bodySmall),
+              ],
+            ),
+          );
+        }).toList(),
       ),
     );
   }
 }
 
-class _DomainSection extends ConsumerWidget {
+class _DomainSection extends ConsumerStatefulWidget {
   final Category domain;
   final List<Category> topics;
   final List<Item> allItems;
-  const _DomainSection({
-    required this.domain,
-    required this.topics,
-    required this.allItems,
-  });
-
+  const _DomainSection({required this.domain, required this.topics, required this.allItems});
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final domainCount = allItems.where((i) => i.domainId == domain.id).length;
+  ConsumerState<_DomainSection> createState() => _DomainSectionState();
+}
 
+class _DomainSectionState extends ConsumerState<_DomainSection> {
+  bool _open = false;
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final domainCount = widget.allItems.where((i) => i.domainId == widget.domain.id).length;
     return Padding(
       padding: const EdgeInsets.fromLTRB(AppSpacing.s4, AppSpacing.s2, AppSpacing.s4, AppSpacing.s2),
       child: AppCard(
-        onTap: () => _showDomainItems(context, domain, allItems),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Container(
-                  width: 36, height: 36,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary50,
-                    borderRadius: BorderRadius.circular(AppRadius.md),
+            InkWell(
+              onTap: () => setState(() => _open = !_open),
+              child: Row(
+                children: [
+                  Container(
+                    width: 36, height: 36,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary50,
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                    ),
+                    child: const Icon(Icons.folder_outlined, color: AppColors.primary500, size: 20),
                   ),
-                  child: const Icon(Icons.folder_outlined,
-                      color: AppColors.primary500, size: 20),
-                ),
-                const SizedBox(width: AppSpacing.s3),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(domain.name, style: theme.textTheme.titleLarge),
-                      Text('$domainCount 条收藏 · ${topics.length} 个主题',
-                          style: theme.textTheme.bodyMedium),
-                    ],
+                  const SizedBox(width: AppSpacing.s3),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(widget.domain.name, style: theme.textTheme.titleLarge),
+                        Text('$domainCount 条收藏 · ${widget.topics.length} 个主题', style: theme.textTheme.bodyMedium),
+                      ],
+                    ),
                   ),
-                ),
-                Icon(Icons.chevron_right, color: theme.hintColor),
-              ],
+                  Icon(_open ? Icons.expand_less : Icons.chevron_right, color: theme.hintColor),
+                ],
+              ),
             ),
-            if (topics.isNotEmpty) ...[
+            if (_open) ...[
               const SizedBox(height: AppSpacing.s3),
               const Divider(height: 1),
-              const SizedBox(height: AppSpacing.s3),
-              ...topics.map((t) {
-                final count = allItems.where((i) => i.topicId == t.id).length;
+              const SizedBox(height: AppSpacing.s2),
+              ...widget.topics.map((t) {
+                final count = widget.allItems.where((i) => i.topicId == t.id).length;
                 return InkWell(
-                  onTap: () => context.push('/topic/${domain.id}/${t.id}'),
+                  onTap: () => context.push('/topic/${widget.domain.id}/${t.id}'),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: AppSpacing.s2),
                     child: Row(
                       children: [
-                        const Icon(Icons.subdirectory_arrow_right,
-                            size: 16, color: AppColors.primary500),
+                        const Icon(Icons.subdirectory_arrow_right, size: 16, color: AppColors.primary500),
                         const SizedBox(width: AppSpacing.s2),
                         Expanded(child: Text(t.name, style: theme.textTheme.bodyLarge)),
                         Text('$count', style: theme.textTheme.bodyMedium),
@@ -167,6 +181,15 @@ class _DomainSection extends ConsumerWidget {
                   ),
                 );
               }),
+              const SizedBox(height: AppSpacing.s2),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  icon: const Icon(Icons.list_alt, size: 16),
+                  label: const Text('查看全部'),
+                  onPressed: () => _showDomainItems(context, widget.domain, widget.allItems),
+                ),
+              ),
             ],
           ],
         ),
@@ -175,7 +198,7 @@ class _DomainSection extends ConsumerWidget {
   }
 }
 
-// 领域下全部收藏（点击领域卡片 -> 展示该领域 items，可跳详情）
+// 领域下全部收藏（点击「查看全部」-> 展示该领域 items，可跳详情）
 void _showDomainItems(BuildContext context, Category domain, List<Item> allItems) {
   final items = allItems.where((i) => i.domainId == domain.id).toList();
   showModalBottomSheet(

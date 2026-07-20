@@ -102,14 +102,8 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
             Text(item.failReason!, style: TextStyle(color: theme.colorScheme.error, fontSize: AppFonts.xs)),
           ],
 
-          // 内容区
+          // 内容区（原文 toggle + 复制，对齐 web 原文预览开关）
           _buildContent(item, theme),
-
-          // 原文预览
-          if (item.content != null && item.content!.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.s3),
-            _expandableSection('原文', item.content!, theme),
-          ],
 
           // 长摘要
           if (item.summaryLong != null && item.summaryLong!.isNotEmpty) ...[
@@ -256,7 +250,26 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
         return PdfPreview(url: item.url ?? 'document.pdf');
       case ItemType.link:
       case ItemType.text:
-        return MarkdownView(data: item.content ?? '(该内容暂无正文)');
+        return _ExpandableBlock(
+          title: '原文',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              MarkdownView(data: item.content ?? '(该内容暂无正文)'),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  icon: const Icon(Icons.copy, size: 16),
+                  label: const Text('复制原文'),
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(text: item.content ?? ''));
+                    showRecallToast(context, '已复制原文');
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
     }
   }
 
@@ -453,11 +466,6 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
     }
   }
 
-  /// 原文/长文本可展开 section
-  Widget _expandableSection(String title, String text, ThemeData theme) {
-    return _ExpandableBlock(title: title, child: Text(text, style: theme.textTheme.bodyMedium));
-  }
-
   /// 状态徽章
   Widget _statusBadge(Item item, ThemeData theme) {
     final (label, color) = switch (item.status) {
@@ -534,7 +542,7 @@ class _ExpandableBlock extends StatefulWidget {
 }
 
 class _ExpandableBlockState extends State<_ExpandableBlock> {
-  bool _open = false;
+  bool _open = true;
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
