@@ -58,10 +58,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(path: '/timeline', builder: (_, __) => const TimelinePage()),
           GoRoute(path: '/topics', builder: (_, __) => const TopicsPage()),
-          GoRoute(path: '/search', builder: (_, __) => const SearchPage()),
+          GoRoute(path: '/copilot', builder: (_, __) => const CopilotPage()),
           GoRoute(path: '/settings', builder: (_, __) => const SettingsPage()),
         ],
       ),
+      GoRoute(path: '/search', builder: (_, __) => const SearchPage()),
       GoRoute(path: '/add', builder: (_, __) => const AddPage()),
       // Phase 1.6 — 注册缺失的 /key-setup 路由
       GoRoute(path: '/key-setup', builder: (_, __) => const KeySetupPage()),
@@ -75,10 +76,6 @@ final routerProvider = Provider<GoRouter>((ref) {
           domainId: state.pathParameters['domainId']!,
           topicId: state.pathParameters['topicId']!,
         ),
-      ),
-      GoRoute(
-        path: '/copilot',
-        builder: (_, __) => const CopilotPage(),
       ),
     ],
   );

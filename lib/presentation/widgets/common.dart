@@ -2,7 +2,6 @@
 // 通用组件库 - Recall 16 个核心组件
 // 详见方案 §3.4
 
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import '../../core/theme/design_tokens.dart';
@@ -171,28 +170,20 @@ class AppCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isLight = theme.brightness == Brightness.light;
-    final glassBg = isLight ? AppColors.glassBgLight : AppColors.glassBgDark;
-    final glassBorder = isLight ? AppColors.glassBorderLight : AppColors.glassBorderDark;
-    return ClipRRect(
+    // 实心卡片（不用 BackdropFilter 模糊，避免列表滚动/切 tab 时模糊采样滞后造成的拖影与卡顿）
+    return Material(
+      color: theme.cardColor,
       borderRadius: BorderRadius.circular(AppRadius.xl),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.xl),
         child: Container(
+          padding: padding,
           decoration: BoxDecoration(
-            color: glassBg,
             borderRadius: BorderRadius.circular(AppRadius.xl),
-            border: Border.all(color: glassBorder, width: 1),
-            boxShadow: AppShadows.md,
+            border: Border.all(color: theme.dividerColor, width: 0.5),
           ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: onTap,
-              borderRadius: BorderRadius.circular(AppRadius.xl),
-              child: Padding(padding: padding, child: child),
-            ),
-          ),
+          child: child,
         ),
       ),
     );
@@ -448,9 +439,8 @@ class RecallBottomTabBar extends StatelessWidget {
                   _tab(0, Icons.timeline, '时间线', context),
                   _tab(1, Icons.grid_view, '主题', context),
                   const SizedBox(width: 64),
-                  _tab(2, Icons.search, '搜索', context),
-                  _tab(3, Icons.auto_awesome, '助手', context),
-                  _tab(4, Icons.person, '我的', context),
+                  _tab(2, Icons.auto_awesome, '助手', context),
+                  _tab(3, Icons.person, '我的', context),
                 ],
               ),
               Positioned(
@@ -459,7 +449,7 @@ class RecallBottomTabBar extends StatelessWidget {
                 right: 0,
                 child: Center(
                   child: GestureDetector(
-                    onTap: () => onTap(5),
+                    onTap: () => onTap(4),
                     child: Container(
                       width: 56,
                       height: 56,
