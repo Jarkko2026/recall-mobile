@@ -14,12 +14,14 @@ class ItemRepository {
 
   // ===== items =====
 
-  Future<List<Item>> fetchItems({String? topicId, String? domainId, String? tagId, int limit = 200}) async {
+  Future<List<Item>> fetchItems({String? topicId, String? domainId, String? tagId, int limit = 200, String sort = 'created_at', String dir = 'desc'}) async {
     final body = <String, dynamic>{};
     if (topicId != null) body['topicId'] = topicId;
     if (domainId != null) body['domainId'] = domainId;
     if (tagId != null) body['tagId'] = tagId;
     body['limit'] = limit;
+    body['sort'] = sort;
+    body['dir'] = dir;
     final data = await _api.call('items-api', method: 'GET', path: '/items', body: body);
     final list = (data['items'] as List? ?? []);
     return list
@@ -145,16 +147,25 @@ class ItemsState {
 
 class ItemsController extends StateNotifier<ItemsState> {
   final ItemRepository _repo;
+  String _sort = 'created_at';
+  String _dir = 'desc';
   ItemsController(this._repo) : super(const ItemsState());
 
   Future<void> refresh() async {
     state = state.copyWith(loading: true, clearError: true);
     try {
-      final list = await _repo.fetchItems(limit: 500);
+      final list = await _repo.fetchItems(limit: 500, sort: _sort, dir: _dir);
       state = ItemsState(items: list, loading: false);
     } catch (e) {
       state = state.copyWith(loading: false, error: e);
     }
+  }
+
+  /// 设置排序并刷新（sort: created_at/updated_at/view_count）
+  void setSort(String sort, [String dir = 'desc']) {
+    _sort = sort;
+    _dir = dir;
+    refresh();
   }
 
   Future<Item> add(Item draft, {bool autoOrganize = true}) async {

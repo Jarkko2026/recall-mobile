@@ -102,7 +102,14 @@ class _TimelinePageState extends ConsumerState<TimelinePage> {
           PopupMenuButton<String>(
             icon: const Icon(Icons.sort, size: 20),
             tooltip: '排序',
-            onSelected: (_) => ref.read(itemsControllerProvider.notifier).refresh(),
+            onSelected: (v) {
+              final sort = v == 'updated_desc'
+                  ? 'updated_at'
+                  : v == 'views_desc'
+                      ? 'view_count'
+                      : 'created_at';
+              ref.read(itemsControllerProvider.notifier).setSort(sort);
+            },
             itemBuilder: (_) => const [
               PopupMenuItem(value: 'created_desc', child: Text('最新创建')),
               PopupMenuItem(value: 'updated_desc', child: Text('最近更新')),

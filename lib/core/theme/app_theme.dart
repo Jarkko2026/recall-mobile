@@ -80,7 +80,7 @@ class AppTheme {
       useMaterial3: true,
       brightness: brightness,
       colorScheme: colorScheme,
-      scaffoldBackgroundColor: Colors.transparent,
+      scaffoldBackgroundColor: bg,
       canvasColor: bg,
       cardColor: bgSecondary,
       dividerColor: border,
